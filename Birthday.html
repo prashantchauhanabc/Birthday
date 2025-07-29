@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy Birthday Card – 2 Clicks</title>
+  <style>
+    :root {
+      --card-w: 360px;
+      --card-h: 240px;
+      --accent: #ff3cac;
+      --accent2: #784ba0;
+      --accent3: #2b86c5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+      background: #111;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* animated gradient background for party mode */
+    body.party {
+      animation: bgShift 6s linear infinite alternate;
+    }
+
+    @keyframes bgShift {
+      0%   { background: linear-gradient(45deg, var(--accent), var(--accent2)); }
+      50%  { background: linear-gradient(120deg, #ff9a9e, #fad0c4); }
+      100% { background: linear-gradient(200deg, var(--accent3), #00c6ff); }
+    }
+
+    #stage {
+      perspective: 1200px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      z-index: 2;
+    }
+
+    .card {
+      width: var(--card-w);
+      height: var(--card-h);
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.9s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .card.open {
+      transform: rotateY(180deg);
+    }
+
+    .front,
+    .inside {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.35);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .front {
+      background: linear-gradient(135deg, #222, #333);
+      border: 2px solid #444;
+    }
+
+    .front h1 {
+      font-size: 1.8rem;
+      letter-spacing: 1px;
+      color: #f1f1f1;
+    }
+
+    .inside {
+      background: #fff;
+      color: #222;
+      transform: rotateY(180deg);
+    }
+
+    .inside h1 {
+      font-size: 1.9rem;
+      margin-bottom: .4rem;
+    }
+
+    .inside p {
+      line-height: 1.5;
+      opacity: .8;
+    }
+
+    #hint {
+      margin-top: 22px;
+      font-size: .9rem;
+      opacity: .7;
+      text-align: center;
+    }
+
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage" aria-label="Birthday card. Click to open, click again to celebrate!">
+    <div class="card" id="card">
+      <div class="front">
+        <h1>🎁 Click to open your card</h1>
+      </div>
+      <div class="inside">
+        <div>
+          <h1>Happy Birthday, <span id="name"></span>! 🎉</h1>
+          <p>Wishing you a day filled with joy, laughter and your favourite people (and cake 🍰).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p id="hint">1st click = open the card with your name • 2nd click = celebrate with colors & music</p>
+
+  <!-- Put a happy-birthday.mp3 next to this file (or change the src) -->
+  <audio id="song" src="Happy-Birthday.mp3" preload="auto"></audio>
+  <canvas id="confetti"></canvas>
+
+  <script>
+    // ====== CONFIGURE YOUR NAME HERE ======
+    const YOUR_NAME = "Prashant Chauhan"; // <-- change this!
+
+    // ====== STATE ======
+    let state = 0; // 0 = closed, 1 = opened, 2 = party
+
+    const stage = document.getElementById('stage');
+    const card = document.getElementById('card');
+    const nameEl = document.getElementById('name');
+    const song = document.getElementById('song');
+
+    // Confetti setup
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    let W, H, confettiPieces = [], animationId;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function random(min, max) { return Math.random() * (max - min) + min; }
+
+    function createConfetti(count = 200) {
+      confettiPieces = Array.from({ length: count }, () => ({
+        x: random(0, W),
+        y: random(-H, 0),
+        r: random(4, 10),
+        tilt: random(-10, 10),
+        tiltAngle: 0,
+        tiltAngleIncrement: random(0.05, 0.12),
+        color: `hsl(${Math.floor(random(0,360))}, 100%, 50%)`,
+        speed: random(2, 5)
+      }));
+    }
+
+    function drawConfetti() {
+      ctx.clearRect(0, 0, W, H);
+      confettiPieces.forEach(p => {
+        ctx.beginPath();
+        ctx.fillStyle = p.color;
+        ctx.ellipse(p.x, p.y, p.r, p.r / 2, p.tiltAngle, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function updateConfetti() {
+      confettiPieces.forEach(p => {
+        p.y += p.speed;
+        p.tiltAngle += p.tiltAngleIncrement;
+        p.x += Math.sin(p.tiltAngle);
+        if (p.y > H + 20) {
+          p.y = -20;
+          p.x = random(0, W);
+        }
+      });
+    }
+
+    function loop() {
+      drawConfetti();
+      updateConfetti();
+      animationId = requestAnimationFrame(loop);
+    }
+
+    function startParty() {
+      if (state >= 2) return;
+      state = 2;
+      document.body.classList.add('party');
+      createConfetti(250);
+      cancelAnimationFrame(animationId);
+      loop();
+      // play sound (allowed because triggered by user gesture)
+      song.play().catch(() => {
+        console.warn('Autoplay prevented. Click again to start the song.');
+      });
+    }
+
+    stage.addEventListener('click', () => {
+      if (state === 0) {
+        // First click: open card & set name
+        nameEl.textContent = YOUR_NAME;
+        card.classList.add('open');
+        state = 1;
+      } else if (state === 1) {
+        // Second click: celebrate!
+        startParty();
+      } else {
+        // Optional: restart party on subsequent clicks
+        startParty();
+      }
+    });
+  </script>
+</body>
+</html>
